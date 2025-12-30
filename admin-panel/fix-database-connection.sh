@@ -1,0 +1,32 @@
+#!/bin/bash
+
+echo "🔧 Supabase Database Connection Fixer"
+echo "========================================"
+echo ""
+echo "The database connection is failing. Follow these steps:"
+echo ""
+echo "1. Go to your Supabase Dashboard:"
+echo "   https://supabase.com/dashboard/project/otenrlbuohajthlgjyjh"
+echo ""
+echo "2. Check if project is paused:"
+echo "   - If paused, click 'Resume project'"
+echo "   - Wait 2-3 minutes for database to become available"
+echo ""
+echo "3. Get the connection string:"
+echo "   - Click 'Connect' button (top of dashboard)"
+echo "   - OR go to: Settings > Database"
+echo "   - Select 'Connection pooling' tab"
+echo "   - Copy the connection string"
+echo ""
+echo "4. Update .env.local:"
+echo "   - Replace [YOUR-PASSWORD] with: Darshu@1153"
+echo "   - URL-encode @ as %40"
+echo "   - Update DATABASE_URL line"
+echo ""
+echo "5. Restart your server:"
+echo "   npm run dev"
+echo ""
+echo "Current DATABASE_URL:"
+grep DATABASE_URL .env.local
+
+
