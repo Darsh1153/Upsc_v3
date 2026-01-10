@@ -26,9 +26,10 @@ import { createNote, saveScrapedLink, getAllTags, LocalTag, NoteBlock } from '..
 
 interface WebClipperScreenProps {
     navigation: any;
+    route?: any;
 }
 
-export const WebClipperScreen: React.FC<WebClipperScreenProps> = ({ navigation }) => {
+export const WebClipperScreen: React.FC<WebClipperScreenProps> = ({ navigation, route }) => {
     // State
     const [url, setUrl] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -39,24 +40,66 @@ export const WebClipperScreen: React.FC<WebClipperScreenProps> = ({ navigation }
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Load available tags
+    const { params } = route || {};
+
+    // Load available tags and check for shared URL
     React.useEffect(() => {
         loadTags();
+        checkInitialUrl();
+        const subscription = Linking.addEventListener('url', handleDeepLink);
+        return () => subscription.remove();
     }, []);
+
+    const checkInitialUrl = async () => {
+        // 1. Check navigation params (internal navigation)
+        if (params?.url) {
+            const sharedUrl = decodeURIComponent(params.url);
+            setUrl(sharedUrl);
+            setTimeout(() => autoScrape(sharedUrl), 500);
+            return;
+        }
+
+        // 2. Check initial app launch URL (deep link)
+        const initialUrl = await Linking.getInitialURL();
+        if (initialUrl) {
+            handleDeepLink({ url: initialUrl });
+        }
+    };
+
+    const handleDeepLink = ({ url: link }: { url: string }) => {
+        // Expected format: upscprep://clip?url=https%3A%2F%2Fexample.com
+        try {
+            const parsed = new URL(link);
+            const sharedUrl = parsed.searchParams.get('url');
+            if (sharedUrl) {
+                const decodedUrl = decodeURIComponent(sharedUrl);
+                setUrl(decodedUrl);
+                setTimeout(() => autoScrape(decodedUrl), 500);
+            }
+        } catch (e) {
+            console.log('Error parsing deep link:', e);
+        }
+    };
+
+    const autoScrape = (targetUrl: string) => {
+        if (isValidUrl(targetUrl)) {
+            handleScrape(targetUrl);
+        }
+    };
 
     const loadTags = async () => {
         const tags = await getAllTags();
         setAvailableTags(tags);
     };
 
-    const handleScrape = async () => {
-        if (!url.trim()) {
+    const handleScrape = async (targetUrl = url) => {
+        if (!targetUrl.trim()) {
             Alert.alert('Error', 'Please enter a URL');
             return;
         }
 
-        if (!isValidUrl(url)) {
-            Alert.alert('Invalid URL', 'Please enter a valid URL starting with http:// or https://');
+        if (!isValidUrl(targetUrl)) {
+            Alert.alert('Invalid URL', 'Please enter a valid URL');
             return;
         }
 
@@ -64,9 +107,9 @@ export const WebClipperScreen: React.FC<WebClipperScreenProps> = ({ navigation }
         setIsLoading(true);
 
         try {
-            const result = await smartScrape(url.trim());
+            const result = await smartScrape(targetUrl.trim());
 
-            if (result.error || result.bulletPoints.length === 0) {
+            if (result.error || result.contentBlocks.length === 0) {
                 setError(result.error || 'Could not extract content from this URL');
                 setIsLoading(false);
                 return;
@@ -92,32 +135,32 @@ export const WebClipperScreen: React.FC<WebClipperScreenProps> = ({ navigation }
             const noteBlocks: NoteBlock[] = contentBlocksToNoteBlocks(scrapedContent.contentBlocks);
 
             // Build plain text content
-            const bulletText = scrapedContent.bulletPoints
-                .map((b, i) => `${i + 1}. ${b}`)
-                .join('\n');
+            const plainText = scrapedContent.contentBlocks
+                .map(b => b.items ? b.items.join('\n') : b.content)
+                .join('\n\n');
 
             // Save scraped link
             await saveScrapedLink({
                 url: scrapedContent.url,
                 title: customTitle || scrapedContent.title,
                 content: scrapedContent.content,
-                summary: scrapedContent.bulletPoints.slice(0, 5).join('. '),
+                summary: ((scrapedContent.metaDescription) ? scrapedContent.metaDescription.substring(0, 150) : plainText.substring(0, 150)) + '...',
             });
 
             // Create note
             await createNote({
                 title: customTitle || scrapedContent.title,
-                content: bulletText,
+                content: plainText,
                 blocks: noteBlocks,
                 tags: selectedTags,
                 sourceType: 'scraped',
                 sourceUrl: scrapedContent.url,
-                summary: scrapedContent.bulletPoints.slice(0, 3).join('. '),
+                summary: ((scrapedContent.metaDescription) ? scrapedContent.metaDescription.substring(0, 150) : plainText.substring(0, 150)) + '...',
             });
 
             Alert.alert(
                 '✅ Note Saved!',
-                `${scrapedContent.bulletPoints.length} bullet points extracted and saved.`,
+                `${scrapedContent.contentBlocks.length} content blocks extracted and saved.`,
                 [{ text: 'OK', onPress: () => navigation.goBack() }]
             );
         } catch (err) {
@@ -190,6 +233,8 @@ export const WebClipperScreen: React.FC<WebClipperScreenProps> = ({ navigation }
                                 autoCapitalize="none"
                                 autoCorrect={false}
                                 keyboardType="url"
+                                onSubmitEditing={() => handleScrape()}
+                                autoFocus={Platform.OS === 'web'}
                             />
                             {url.length > 0 && (
                                 <TouchableOpacity onPress={() => setUrl('')}>
@@ -207,7 +252,7 @@ export const WebClipperScreen: React.FC<WebClipperScreenProps> = ({ navigation }
 
                         <TouchableOpacity
                             style={[styles.primaryButton, !url.trim() && styles.disabledButton]}
-                            onPress={handleScrape}
+                            onPress={() => handleScrape()}
                             disabled={!url.trim()}
                         >
                             <Ionicons name="download-outline" size={20} color="#FFFFFF" />
@@ -306,19 +351,26 @@ export const WebClipperScreen: React.FC<WebClipperScreenProps> = ({ navigation }
                     <View style={styles.section}>
                         <View style={styles.sectionHeader}>
                             <Text style={styles.sectionLabel}>
-                                Extracted Points ({scrapedContent?.bulletPoints.length})
+                                Extracted Content ({scrapedContent?.contentBlocks.length} blocks)
                             </Text>
                         </View>
 
                         <View style={styles.bulletPointsContainer}>
-                            {scrapedContent?.bulletPoints.map((point, index) => (
+                            {scrapedContent?.contentBlocks.slice(0, 5).map((block, index) => (
                                 <View key={index} style={styles.bulletPoint}>
                                     <View style={styles.bulletNumber}>
                                         <Text style={styles.bulletNumberText}>{index + 1}</Text>
                                     </View>
-                                    <Text style={styles.bulletText}>{point}</Text>
+                                    <Text style={styles.bulletText} numberOfLines={3}>
+                                        {block.items ? block.items.join(', ') : block.content}
+                                    </Text>
                                 </View>
                             ))}
+                            {scrapedContent?.contentBlocks.length > 5 && (
+                                <Text style={{ textAlign: 'center', color: '#6B7280', marginTop: 8 }}>
+                                    ... and {scrapedContent.contentBlocks.length - 5} more blocks
+                                </Text>
+                            )}
                         </View>
                     </View>
 
@@ -364,7 +416,7 @@ export const WebClipperScreen: React.FC<WebClipperScreenProps> = ({ navigation }
                             <>
                                 <Ionicons name="save" size={20} color="#FFFFFF" />
                                 <Text style={styles.saveButtonText}>
-                                    Save {scrapedContent?.bulletPoints.length} Bullet Points
+                                    Save Note
                                 </Text>
                             </>
                         )}

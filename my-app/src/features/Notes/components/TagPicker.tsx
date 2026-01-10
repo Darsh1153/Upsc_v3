@@ -12,22 +12,22 @@ import {
     Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Tag } from '../types';
+import { LocalTag } from '../services/localNotesStorage';
 import { useTagSuggestions } from '../hooks/useTagSuggestions';
 import { Input } from '../../../components/Input';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface TagPickerProps {
-    selectedTags: Tag[];
-    onTagsChange: (tags: Tag[]) => void;
+    selectedTags: LocalTag[];
+    onTagsChange: (tags: LocalTag[]) => void;
     placeholder?: string;
     maxTags?: number;
     theme?: 'light' | 'dark';
 }
 
 interface TagChipProps {
-    tag: Tag;
+    tag: LocalTag;
     onRemove?: () => void;
     removable?: boolean;
     theme: 'light' | 'dark';
@@ -89,7 +89,7 @@ export const TagPicker: React.FC<TagPickerProps> = ({
         search(text);
     }, [search]);
 
-    const handleSelectTag = useCallback((tag: Tag) => {
+    const handleSelectTag = useCallback((tag: LocalTag) => {
         if (selectedTags.some(t => t.id === tag.id)) {
             // Remove if already selected
             onTagsChange(selectedTags.filter(t => t.id !== tag.id));

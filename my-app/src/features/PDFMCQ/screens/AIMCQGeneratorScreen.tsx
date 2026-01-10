@@ -25,6 +25,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 // @ts-ignore
 import { useTheme } from '../../Reference/theme/ThemeContext';
@@ -482,11 +483,18 @@ export default function AIMCQGeneratorScreen() {
 
                         {/* Generate Button */}
                         <TouchableOpacity
-                            style={[styles.generateBtn, { backgroundColor: theme.colors.primary }]}
+                            style={styles.generateBtn}
                             onPress={handleGenerate}
                         >
-                            <Ionicons name="sparkles" size={24} color="#fff" />
-                            <Text style={styles.generateBtnText}>Generate MCQs</Text>
+                            <LinearGradient
+                                colors={['#F59E0B', '#F97316']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={styles.generateBtnGradient}
+                            >
+                                <Ionicons name="school" size={24} color="#fff" />
+                                <Text style={styles.generateBtnText}>Generate MCQs</Text>
+                            </LinearGradient>
                         </TouchableOpacity>
 
                         {/* Info */}
@@ -670,7 +678,8 @@ const styles = StyleSheet.create({
     errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FEE2E2', padding: 12, borderRadius: 10, marginTop: 16 },
     errorText: { color: '#DC2626', flex: 1 },
 
-    generateBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingVertical: 18, borderRadius: 14, marginTop: 24 },
+    generateBtn: { marginTop: 24, borderRadius: 14, overflow: 'hidden' },
+    generateBtnGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingVertical: 18 },
     generateBtnText: { color: '#fff', fontSize: 18, fontWeight: '700' },
 
     infoText: { fontSize: 13, textAlign: 'center', marginTop: 16 },

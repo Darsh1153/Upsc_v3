@@ -174,6 +174,41 @@ const RootNavigator = () => {
   );
 };
 
+import * as Linking from 'expo-linking';
+
+const prefix = Linking.createURL('/');
+
+const linking = {
+  prefixes: [prefix, 'upscprep://'],
+  config: {
+    screens: {
+      Main: {
+        screens: {
+          Home: 'home',
+          Notes: 'notes',
+          WebClipperScreen: 'clip',
+          CreateNoteScreen: 'create-note',
+          NoteDetailScreen: 'note/:noteId',
+          Roadmap: 'roadmap',
+          QuestionBank: 'questions',
+          Essay: 'essay',
+          Reference: 'reference',
+          MindMap: 'mindmap',
+          PDFMCQGenerator: 'pdf-mcq',
+          AIMCQGenerator: 'ai-mcq',
+          Settings: 'settings',
+        },
+      },
+      Auth: {
+        screens: {
+          Welcome: 'welcome',
+          Login: 'login',
+        },
+      },
+    },
+  },
+};
+
 export default function App() {
   return (
     <SafeAreaProvider>
@@ -182,7 +217,7 @@ export default function App() {
           <VisualReferenceProvider>
             <ReferenceThemeProvider>
               <WebLayout>
-                <NavigationContainer>
+                <NavigationContainer linking={linking} fallback={<LoadingScreen />}>
                   <StatusBar style="dark" />
                   <RootNavigator />
                 </NavigationContainer>

@@ -1,7 +1,7 @@
 /**
- * Web Scraper Service - Local HTML Parsing
- * Uses parseHtmlToBlocks and extractMainContent directly
- * CORS proxy for web browser
+ * Web Scraper Service
+ * Handles scraping of article content from URLs using local HTML parsing
+ * Uses AllOrigins CORS proxy for web compatibility
  */
 
 export interface ScrapedArticle {
@@ -23,7 +23,36 @@ export interface ContentBlock {
     items?: string[];
 }
 
-// Simple HTML parser to extract content blocks
+import { NoteBlock } from './localNotesStorage';
+
+/**
+ * Helper to convert scraped blocks to NoteBlocks
+ */
+export const contentBlocksToNoteBlocks = (blocks: ContentBlock[]): NoteBlock[] => {
+    return blocks.map((block) => {
+        let type: NoteBlock['type'] = 'paragraph';
+
+        if (block.type === 'heading') {
+            type = block.level === 1 ? 'h1' : block.level === 2 ? 'h2' : 'h3';
+        } else if (block.type === 'numbered') {
+            type = 'numbered';
+        } else if (block.type === 'bullet') {
+            type = 'bullet';
+        } else if (block.type === 'quote') {
+            type = 'quote';
+        }
+
+        return {
+            id: Math.random().toString(36).substr(2, 9),
+            type,
+            content: block.items ? block.items.join('\n') : block.content,
+        };
+    });
+};
+
+/**
+ * Parses HTML string into structured ContentBlocks
+ */
 function parseHtmlToBlocks(html: string): Array<{ type: string; content: string;[key: string]: any }> {
     const blocks: Array<{ type: string; content: string;[key: string]: any }> = [];
 
@@ -106,87 +135,112 @@ export const smartScrape = async (url: string): Promise<ScrapedArticle> => {
     try {
         console.log('[WebScraper] Starting scrape for:', url);
 
-        // Use CORS proxy for web browser
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-        console.log('[WebScraper] Using CORS proxy');
+        // Try Primary Proxy (AllOrigins)
+        try {
+            console.log('[WebScraper] Trying Primary Proxy (AllOrigins)...');
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+            const response = await fetch(proxyUrl);
+            if (!response.ok) throw new Error(`Status: ${response.status}`);
+            const html = await response.text();
+            if (!html || html.length < 100) throw new Error('Empty response');
+            return processHtml(html, url);
+        } catch (primaryError) {
+            console.warn('[WebScraper] Primary proxy failed:', primaryError);
 
-        const response = await fetch(proxyUrl);
+            // Try Secondary Proxy (CORSProxy.io)
+            try {
+                console.log('[WebScraper] Trying Secondary Proxy (CORSProxy.io)...');
+                const fallbackUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+                const response = await fetch(fallbackUrl);
+                if (!response.ok) throw new Error(`Status: ${response.status}`);
+                const html = await response.text();
+                if (!html || html.length < 100) throw new Error('Empty response');
+                return processHtml(html, url);
+            } catch (secondaryError) {
+                console.warn('[WebScraper] Secondary proxy failed:', secondaryError);
 
-        if (!response.ok) {
-            throw new Error(`Failed to fetch: ${response.status}`);
+                // Try Tertiary Proxy (CodeTabs)
+                try {
+                    console.log('[WebScraper] Trying Tertiary Proxy (CodeTabs)...');
+                    const tertiaryUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
+                    const response = await fetch(tertiaryUrl);
+                    if (!response.ok) throw new Error(`Status: ${response.status}`);
+                    const html = await response.text();
+                    if (!html || html.length < 100) throw new Error('Empty response');
+                    return processHtml(html, url);
+                } catch (tertiaryError) {
+                    console.error('[WebScraper] All proxies failed:', tertiaryError);
+                    throw new Error('Could not fetch article. The website might be blocking automated access.');
+                }
+            }
         }
-
-        const html = await response.text();
-        console.log('[WebScraper] Fetched HTML, length:', html.length);
-
-        // Extract title
-        const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-        let title = titleMatch ? titleMatch[1].trim() : '';
-
-        const ogTitleMatch = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i);
-        if (ogTitleMatch) title = ogTitleMatch[1];
-
-        // Extract meta description
-        const metaDescMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
-        const metaDescription = metaDescMatch ? metaDescMatch[1] : '';
-
-        // Extract author
-        const authorMatch = html.match(/<meta[^>]*name=["']author["'][^>]*content=["']([^"']+)["']/i);
-        const author = authorMatch ? authorMatch[1] : undefined;
-
-        // Extract published date
-        const dateMatch = html.match(/<meta[^>]*property=["']article:published_time["'][^>]*content=["']([^"']+)["']/i);
-        const publishedDate = dateMatch ? dateMatch[1] : undefined;
-
-        // Extract og:image
-        const ogImageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i);
-        const featuredImage = ogImageMatch ? ogImageMatch[1] : undefined;
-
-        // Extract main content using the two functions
-        const mainContent = extractMainContent(html);
-        const rawBlocks = parseHtmlToBlocks(mainContent);
-
-        console.log('[WebScraper] Extracted', rawBlocks.length, 'content blocks');
-
-        // Clean title
-        const cleanedTitle = title.replace(/\s*[|\-–—]\s*[^|]*$/, '').trim();
-
-        // Convert to ContentBlock format
-        const contentBlocks: ContentBlock[] = rawBlocks.map(block => ({
-            type: block.type === 'ordered-list' ? 'numbered' :
-                block.type === 'unordered-list' ? 'bullet' :
-                    block.type as ContentBlock['type'],
-            content: block.content || '',
-            level: block.level,
-            items: block.items,
-        }));
-
-        // Build plain text
-        const plainContent = contentBlocks
-            .map(b => b.items ? b.items.join('\n') : b.content)
-            .filter(c => c)
-            .join('\n\n');
-
-        return {
-            url,
-            title: cleanedTitle || 'Untitled',
-            content: plainContent,
-            contentBlocks,
-            author,
-            publishedDate,
-            metaDescription,
-            featuredImage,
-        };
     } catch (error) {
         console.error('[WebScraper] Error:', error);
         return {
             url,
-            title: 'Error',
+            title: 'Error Scraping Article',
             content: '',
             contentBlocks: [],
-            error: error instanceof Error ? error.message : 'Failed to scrape URL',
+            error: error instanceof Error ? error.message : 'Unknown error occurred'
         };
     }
+};
+
+/**
+ * Helper to process HTML and return ScrapedArticle
+ */
+const processHtml = (html: string, url: string): ScrapedArticle => {
+    console.log('[WebScraper] Fetched HTML, length:', html.length);
+
+    // Extract metadata
+    const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    let title = titleMatch ? titleMatch[1].trim() : '';
+    const ogTitleMatch = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i);
+    if (ogTitleMatch) title = ogTitleMatch[1];
+    const cleanedTitle = title.replace(/\s*[|\-–—]\s*[^|]*$/, '').trim();
+
+    const metaDescMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
+    const metaDescription = metaDescMatch ? metaDescMatch[1] : undefined;
+
+    const authorMatch = html.match(/<meta[^>]*name=["']author["'][^>]*content=["']([^"']+)["']/i);
+    const author = authorMatch ? authorMatch[1] : undefined;
+
+    const dateMatch = html.match(/<meta[^>]*property=["']article:published_time["'][^>]*content=["']([^"']+)["']/i);
+    const publishedDate = dateMatch ? dateMatch[1] : undefined;
+
+    const ogImageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i);
+    const featuredImage = ogImageMatch ? ogImageMatch[1] : undefined;
+
+    // Process Content
+    const mainContent = extractMainContent(html);
+    const rawBlocks = parseHtmlToBlocks(mainContent);
+
+    // Map to typed ContentBlocks
+    const contentBlocks: ContentBlock[] = rawBlocks.map(block => ({
+        type: block.type === 'ordered-list' ? 'numbered' :
+            block.type === 'unordered-list' ? 'bullet' :
+                block.type as ContentBlock['type'],
+        content: block.content,
+        level: block.level,
+        items: block.items
+    }));
+
+    // Generate plain text content
+    const plainContent = contentBlocks
+        .map(b => b.items ? b.items.join('\n') : b.content)
+        .join('\n\n');
+
+    return {
+        url,
+        title: cleanedTitle || 'Untitled Article',
+        content: plainContent,
+        contentBlocks,
+        author,
+        publishedDate,
+        metaDescription,
+        featuredImage
+    };
+
 };
 
 /**
@@ -217,4 +271,5 @@ export default {
     smartScrape,
     isValidUrl,
     extractDomain,
+    contentBlocksToNoteBlocks, // Export it
 };

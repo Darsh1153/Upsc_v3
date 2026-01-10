@@ -14,6 +14,7 @@ import {
     Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
     createNote,
     updateNote,
@@ -22,7 +23,10 @@ import {
     LocalNote,
     NoteBlock,
 } from '../services/localNotesStorage';
+import { TagPicker } from '../components/TagPicker';
+import { summarizeNoteContent } from '../services/aiSummarizer';
 import { smartScrape, isValidUrl, extractDomain } from '../services/webScraper';
+import { TypeWriterText } from '../../../components/TypeWriterText';
 
 interface CreateNoteScreenProps {
     navigation: any;
@@ -99,10 +103,8 @@ export const CreateNoteScreen: React.FC<CreateNoteScreenProps> = ({ navigation, 
         initialNote?.blocks || [{ id: generateBlockId(), type: 'paragraph', content: '' }]
     );
     const [selectedTags, setSelectedTags] = useState<LocalTag[]>(initialNote?.tags || []);
-    const [availableTags, setAvailableTags] = useState<LocalTag[]>([]);
     const [sourceType, setSourceType] = useState<LocalNote['sourceType']>(initialNote?.sourceType || 'manual');
     const [showSourcePicker, setShowSourcePicker] = useState(false);
-    const [showTagPicker, setShowTagPicker] = useState(false);
     const [focusedBlockId, setFocusedBlockId] = useState<string | null>(blocks[0]?.id);
     const [isSaving, setIsSaving] = useState(false);
     const [showBlockMenu, setShowBlockMenu] = useState(false);
@@ -112,17 +114,12 @@ export const CreateNoteScreen: React.FC<CreateNoteScreenProps> = ({ navigation, 
     const [scrapeUrl, setScrapeUrl] = useState('');
     const [isScraping, setIsScraping] = useState(false);
 
+    // AI Summarization state
+    const [isSummarizing, setIsSummarizing] = useState(false);
+    const [showSummaryModal, setShowSummaryModal] = useState(false);
+    const [generatedSummary, setGeneratedSummary] = useState('');
+
     const inputRefs = useRef<{ [key: string]: TextInput | null }>({});
-
-    // Load tags
-    useEffect(() => {
-        loadTags();
-    }, []);
-
-    const loadTags = async () => {
-        const tags = await getAllTags();
-        setAvailableTags(tags);
-    };
 
     // Handle block content change with markdown parsing
     const handleBlockChange = useCallback((blockId: string, newText: string) => {
@@ -381,6 +378,72 @@ export const CreateNoteScreen: React.FC<CreateNoteScreenProps> = ({ navigation, 
         }
     };
 
+
+    // Handle AI Summarization
+    const handleSummarize = async () => {
+        const content = blocksToText(blocks);
+        if (!content || content.trim().length === 0) {
+            Alert.alert('Empty Note', 'Please add some content to summarize.');
+            return;
+        }
+
+        setIsSummarizing(true);
+        try {
+            const result = await summarizeNoteContent(content);
+            if (result.error) {
+                Alert.alert('AI Error', result.error);
+            } else {
+                setGeneratedSummary(result.summary);
+                setShowSummaryModal(true);
+            }
+        } catch (error) {
+            console.error('Summarize error:', error);
+            Alert.alert('Error', 'Failed to generate summary.');
+        } finally {
+            setIsSummarizing(false);
+        }
+    };
+
+    const applySummary = () => {
+        if (!generatedSummary) return;
+
+        // Convert summary to blocks (simple split by newline for now, reusing scrape logic or just adding as markdown)
+        const summaryBlocks: NoteBlock[] = [];
+
+        summaryBlocks.push({
+            id: generateBlockId(),
+            type: 'h2',
+            content: '✨ AI Summary'
+        });
+
+        const lines = generatedSummary.split('\n');
+        lines.forEach(line => {
+            const parsed = parseLineToBlock(line);
+            if (parsed.content.trim()) {
+                summaryBlocks.push({
+                    id: generateBlockId(),
+                    type: parsed.type,
+                    content: parsed.content
+                });
+            }
+        });
+
+        summaryBlocks.push({
+            id: generateBlockId(),
+            type: 'divider',
+            content: ''
+        });
+
+        // Insert at top or bottom? Let's insert at top for visibility
+        setBlocks(prev => {
+            // Find index after Title if possible, or just at start
+            return [...summaryBlocks, ...prev];
+        });
+
+        setShowSummaryModal(false);
+        setGeneratedSummary('');
+    };
+
     // Render block
     const renderBlock = (block: NoteBlock, index: number) => {
         const isFirst = index === 0;
@@ -609,62 +672,36 @@ export const CreateNoteScreen: React.FC<CreateNoteScreenProps> = ({ navigation, 
 
                     {/* Tags */}
                     <View style={styles.tagsSection}>
-                        <TouchableOpacity
-                            style={styles.addTagButton}
-                            onPress={() => setShowTagPicker(!showTagPicker)}
-                        >
-                            <Ionicons name="pricetag-outline" size={16} color="#6B7280" />
-                            <Text style={styles.addTagText}>
-                                {selectedTags.length > 0 ? 'Edit tags' : 'Add tags'}
-                            </Text>
-                        </TouchableOpacity>
-
-                        {selectedTags.length > 0 && (
-                            <View style={styles.selectedTagsRow}>
-                                {selectedTags.map(tag => (
-                                    <View
-                                        key={tag.id}
-                                        style={[styles.tagChip, { backgroundColor: tag.color + '20' }]}
-                                    >
-                                        <Text style={[styles.tagChipText, { color: tag.color }]}>
-                                            #{tag.name}
-                                        </Text>
-                                        <TouchableOpacity onPress={() => toggleTag(tag)}>
-                                            <Ionicons name="close-circle" size={14} color={tag.color} />
-                                        </TouchableOpacity>
-                                    </View>
-                                ))}
-                            </View>
-                        )}
-
-                        {showTagPicker && (
-                            <View style={styles.tagPicker}>
-                                {availableTags.slice(0, 15).map(tag => (
-                                    <TouchableOpacity
-                                        key={tag.id}
-                                        style={[
-                                            styles.tagPickerItem,
-                                            selectedTags.some(t => t.id === tag.id) && {
-                                                backgroundColor: tag.color + '20',
-                                                borderColor: tag.color,
-                                            },
-                                        ]}
-                                        onPress={() => toggleTag(tag)}
-                                    >
-                                        <Text style={[
-                                            styles.tagPickerText,
-                                            selectedTags.some(t => t.id === tag.id) && {
-                                                color: tag.color,
-                                                fontWeight: '600',
-                                            },
-                                        ]}>
-                                            #{tag.name}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        )}
+                        <TagPicker
+                            selectedTags={selectedTags}
+                            onTagsChange={setSelectedTags}
+                            maxTags={5}
+                            placeholder="Add tags (e.g. History, Polity)..."
+                        />
                     </View>
+
+                    {/* AI Summarize Button */}
+                    <TouchableOpacity
+                        style={styles.aiButton}
+                        onPress={handleSummarize}
+                        disabled={isSummarizing}
+                    >
+                        <LinearGradient
+                            colors={isSummarizing ? ['#C7C7CC', '#A1A1A6'] : ['#4F46E5', '#7C3AED']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={styles.aiButtonContent}
+                        >
+                            {isSummarizing ? (
+                                <>
+                                    <ActivityIndicator size="small" color="#FFFFFF" />
+                                    <Text style={styles.aiButtonText}>Generating Summary...</Text>
+                                </>
+                            ) : (
+                                <Text style={styles.aiButtonText}>AI Summarize Note</Text>
+                            )}
+                        </LinearGradient>
+                    </TouchableOpacity>
 
                     {/* Divider */}
                     <View style={styles.sectionDivider} />
@@ -790,6 +827,51 @@ export const CreateNoteScreen: React.FC<CreateNoteScreenProps> = ({ navigation, 
                     </View>
                 </Modal>
 
+                {/* AI Summary Modal */}
+                <Modal
+                    visible={showSummaryModal}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={() => setShowSummaryModal(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.summaryModal}>
+                            <View style={styles.summaryHeader}>
+                                <View style={styles.summaryTitleRow}>
+                                    <Ionicons name="sparkles" size={20} color="#6366F1" />
+                                    <Text style={styles.summaryTitle}>AI Summary</Text>
+                                </View>
+                                <TouchableOpacity onPress={() => setShowSummaryModal(false)}>
+                                    <Ionicons name="close" size={24} color="#6B7280" />
+                                </TouchableOpacity>
+                            </View>
+
+                            <ScrollView style={styles.summaryContent}>
+                                <TypeWriterText
+                                    style={styles.summaryText}
+                                    text={generatedSummary}
+                                    speed={5}
+                                />
+                            </ScrollView>
+
+                            <View style={styles.summaryFooter}>
+                                <TouchableOpacity
+                                    style={styles.summaryCancelBtn}
+                                    onPress={() => setShowSummaryModal(false)}
+                                >
+                                    <Text style={styles.summaryCancelText}>Close</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.summaryApplyBtn}
+                                    onPress={applySummary}
+                                >
+                                    <Text style={styles.summaryApplyText}>Add to Note</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
+
                 {/* Block menu overlay */}
                 {renderBlockMenu()}
             </KeyboardAvoidingView>
@@ -859,6 +941,85 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         borderRadius: 8,
         gap: 10,
+    },
+    aiButton: {
+        marginHorizontal: 16,
+        marginBottom: 16,
+        borderRadius: 12,
+        overflow: 'hidden',
+    },
+    aiButtonContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+        gap: 8,
+    },
+    aiButtonText: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    summaryModal: {
+        backgroundColor: '#FFFFFF',
+        width: '90%',
+        maxHeight: '80%',
+        borderRadius: 20,
+        padding: 24,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.25,
+        shadowRadius: 20,
+        elevation: 10,
+    },
+    summaryHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    summaryTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    summaryTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#1F2937',
+    },
+    summaryContent: {
+        marginBottom: 20,
+    },
+    summaryText: {
+        fontSize: 15,
+        lineHeight: 24,
+        color: '#374151',
+    },
+    summaryFooter: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: 12,
+    },
+    summaryCancelBtn: {
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+    },
+    summaryCancelText: {
+        color: '#6B7280',
+        fontSize: 15,
+        fontWeight: '500',
+    },
+    summaryApplyBtn: {
+        backgroundColor: '#6366F1',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 10,
+    },
+    summaryApplyText: {
+        color: '#FFFFFF',
+        fontSize: 15,
+        fontWeight: '600',
     },
     sourceOptionActive: {
         backgroundColor: '#F3F4F6',

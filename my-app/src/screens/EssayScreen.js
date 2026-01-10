@@ -442,7 +442,7 @@ export default function EssayScreen({ navigation }) {
             disabled={!topic || (!answerText && !selectedImage) || isEvaluating}
           >
             <LinearGradient
-              colors={(!topic || (!answerText && !selectedImage) || isEvaluating) ? ['#C7C7CC', '#A1A1A6'] : ['#8E54E9', '#6B3FD6']}
+              colors={(!topic || (!answerText && !selectedImage) || isEvaluating) ? ['#C7C7CC', '#A1A1A6'] : ['#4F46E5', '#7C3AED']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.buttonGradient}
@@ -454,7 +454,7 @@ export default function EssayScreen({ navigation }) {
                 </>
               ) : (
                 <>
-                  <Ionicons name="sparkles" size={18} color="#FFFFFF" />
+                  <Ionicons name="analytics" size={20} color="#FFFFFF" />
                   <Text style={styles.buttonText}>Evaluate Essay</Text>
                 </>
               )}

@@ -24,6 +24,8 @@ import {
     LocalNote,
     LocalTag,
 } from '../services/localNotesStorage';
+import { checkNewsMatches, MatchedArticle } from '../../../services/NewsMatchService';
+import { Modal } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -61,6 +63,8 @@ export const UPSCNotesScreen: React.FC<UPSCNotesScreenProps> = ({ navigation }) 
     const [selectedTags, setSelectedTags] = useState<number[]>([]);
     const [stats, setStats] = useState({ totalNotes: 0, pinnedNotes: 0, scrapedNotes: 0 });
     const [showTagFilter, setShowTagFilter] = useState(false);
+    const [newsMatches, setNewsMatches] = useState<MatchedArticle[]>([]);
+    const [showNotifications, setShowNotifications] = useState(false);
 
     // Load data on mount
     useEffect(() => {
@@ -83,6 +87,14 @@ export const UPSCNotesScreen: React.FC<UPSCNotesScreenProps> = ({ navigation }) 
             setNotes(notesData);
             setTags(tagsData);
             setStats(statsData);
+
+            // Check for news matches
+            try {
+                const matches = await checkNewsMatches();
+                setNewsMatches(matches);
+            } catch (err) {
+                console.error("Failed to check news matches", err);
+            }
         } catch (error) {
             console.error('Error loading notes:', error);
             Alert.alert('Error', 'Failed to load notes');
@@ -210,14 +222,15 @@ export const UPSCNotesScreen: React.FC<UPSCNotesScreenProps> = ({ navigation }) 
                 {note.tags.length > 0 && (
                     <View style={styles.tagsRow}>
                         {note.tags.slice(0, 3).map(tag => (
-                            <View
+                            <TouchableOpacity
                                 key={tag.id}
                                 style={[styles.tagChip, { backgroundColor: tag.color + '20' }]}
+                                onPress={() => toggleTag(tag.id)}
                             >
                                 <Text style={[styles.tagText, { color: tag.color }]}>
                                     #{tag.name}
                                 </Text>
-                            </View>
+                            </TouchableOpacity>
                         ))}
                         {note.tags.length > 3 && (
                             <Text style={styles.moreTagsText}>+{note.tags.length - 3}</Text>
@@ -395,7 +408,80 @@ export const UPSCNotesScreen: React.FC<UPSCNotesScreenProps> = ({ navigation }) 
                 >
                     <Ionicons name="globe-outline" size={26} color="#06B6D4" />
                 </TouchableOpacity>
+
+                {/* Notification Bell */}
+                <TouchableOpacity
+                    style={styles.notificationButton}
+                    onPress={() => setShowNotifications(true)}
+                >
+                    <Ionicons
+                        name={newsMatches.length > 0 ? "notifications" : "notifications-outline"}
+                        size={24}
+                        color={newsMatches.length > 0 ? "#F59E0B" : "#9CA3AF"}
+                    />
+                    {newsMatches.length > 0 && (
+                        <View style={styles.badge}>
+                            <Text style={styles.badgeText}>{newsMatches.length}</Text>
+                        </View>
+                    )}
+                </TouchableOpacity>
             </View>
+
+            {/* Notifications Modal */}
+            <Modal
+                visible={showNotifications}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => setShowNotifications(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>
+                                {newsMatches.length > 0 ? `News Matches (${newsMatches.length})` : 'News Notifications'}
+                            </Text>
+                            <TouchableOpacity onPress={() => setShowNotifications(false)}>
+                                <Ionicons name="close" size={24} color="#1F2937" />
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={styles.modalSubtitle}>Current affairs related to your notes</Text>
+
+                        {newsMatches.length > 0 ? (
+                            <FlatList
+                                data={newsMatches}
+                                keyExtractor={(item) => item.articleId.toString()}
+                                renderItem={({ item }) => (
+                                    <TouchableOpacity
+                                        style={styles.matchItem}
+                                        onPress={() => {
+                                            setShowNotifications(false);
+                                            navigation.navigate('ArticleDetailScreen', { articleId: item.articleId });
+                                        }}
+                                    >
+                                        <View style={styles.matchHeader}>
+                                            <Ionicons name="newspaper-outline" size={16} color="#6366F1" />
+                                            <Text style={styles.matchReason}>{item.matchReason}</Text>
+                                        </View>
+                                        <Text style={styles.matchTitle} numberOfLines={2}>{item.articleTitle}</Text>
+                                        <Text style={styles.matchNoteLink}>
+                                            <Ionicons name="document-text-outline" size={12} color="#6B7280" /> Related to: {item.noteTitle}
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+                                contentContainerStyle={styles.matchList}
+                            />
+                        ) : (
+                            <View style={styles.emptyState}>
+                                <Ionicons name="checkmark-circle-outline" size={48} color="#10B981" />
+                                <Text style={styles.emptyTitle}>All Caught Up!</Text>
+                                <Text style={styles.emptySubtitle}>
+                                    No new matches found between your notes and recent news articles.
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+                </View>
+            </Modal>
 
             <FlatList
                 data={filteredNotes}
@@ -468,6 +554,92 @@ const styles = StyleSheet.create({
     },
     clipButton: {
         padding: 4,
+    },
+    notificationButton: {
+        padding: 4,
+        position: 'relative',
+        marginLeft: 8,
+    },
+    badge: {
+        position: 'absolute',
+        top: -6,
+        right: -6,
+        backgroundColor: '#EF4444',
+        minWidth: 18,
+        height: 18,
+        borderRadius: 9,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 4,
+        borderWidth: 1.5,
+        borderColor: '#FFFFFF',
+    },
+    badgeText: {
+        color: '#FFFFFF',
+        fontSize: 10,
+        fontWeight: '700',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: '#FFFFFF',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 20,
+        maxHeight: '80%',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#1F2937',
+    },
+    modalSubtitle: {
+        fontSize: 14,
+        color: '#6B7280',
+        marginBottom: 16,
+    },
+    matchList: {
+        paddingBottom: 20,
+    },
+    matchItem: {
+        backgroundColor: '#F9FAFB',
+        padding: 12,
+        borderRadius: 12,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: '#F3F4F6',
+    },
+    matchHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 6,
+        gap: 6,
+    },
+    matchReason: {
+        fontSize: 12,
+        color: '#6366F1',
+        fontWeight: '600',
+    },
+    matchTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#1F2937',
+        marginBottom: 6,
+        lineHeight: 22,
+    },
+    matchNoteLink: {
+        fontSize: 12,
+        color: '#6B7280',
+        fontStyle: 'italic',
     },
     listContent: {
         paddingBottom: 100,

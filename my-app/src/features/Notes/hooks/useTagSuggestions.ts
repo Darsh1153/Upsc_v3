@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { debounce } from '../../../utils/throttle';
-import { fetchTagSuggestions, fetchTags, createTag } from '../services/notesApi';
-import { Tag } from '../types';
+import { getAllTags, createTag } from '../services/localNotesStorage';
+import { LocalTag } from '../services/localNotesStorage';
 
 interface UseTagSuggestionsOptions {
     debounceMs?: number;
@@ -12,8 +12,8 @@ interface UseTagSuggestionsOptions {
 export function useTagSuggestions(options: UseTagSuggestionsOptions = {}) {
     const { debounceMs = 300, limit = 10, onError } = options;
 
-    const [suggestions, setSuggestions] = useState<Tag[]>([]);
-    const [allTags, setAllTags] = useState<Tag[]>([]);
+    const [suggestions, setSuggestions] = useState<LocalTag[]>([]);
+    const [allTags, setAllTags] = useState<LocalTag[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<Error | null>(null);
 
@@ -21,7 +21,7 @@ export function useTagSuggestions(options: UseTagSuggestionsOptions = {}) {
     const loadAllTags = useCallback(async () => {
         try {
             setIsLoading(true);
-            const tags = await fetchTags('usageCount', 'desc');
+            const tags = await getAllTags();
             setAllTags(tags);
             setSuggestions(tags.slice(0, limit));
             setError(null);
@@ -34,12 +34,19 @@ export function useTagSuggestions(options: UseTagSuggestionsOptions = {}) {
         }
     }, [limit, onError]);
 
-    // Search suggestions by prefix
+    // Search suggestions by prefix - Local implementation
     const searchSuggestions = useCallback(async (prefix: string) => {
         try {
             setIsLoading(true);
-            const tags = await fetchTagSuggestions(prefix, limit);
-            setSuggestions(tags);
+            // Local search from allTags
+            // Since allTags might not be fresh if this is called directly, we could fetch again or use state
+            // For better consistency, let's fetch fresh
+            const tags = await getAllTags();
+            const lowerPrefix = prefix.toLowerCase();
+            const filtered = tags.filter(tag =>
+                tag.name.toLowerCase().includes(lowerPrefix)
+            );
+            setSuggestions(filtered.slice(0, limit));
             setError(null);
         } catch (err) {
             const error = err instanceof Error ? err : new Error('Failed to search tags');
@@ -87,7 +94,7 @@ export function useTagSuggestions(options: UseTagSuggestionsOptions = {}) {
     }, [searchSuggestions, allTags, limit]);
 
     // Create a new tag
-    const createNewTag = useCallback(async (name: string, color?: string): Promise<Tag | null> => {
+    const createNewTag = useCallback(async (name: string, color?: string): Promise<LocalTag | null> => {
         try {
             setIsLoading(true);
             const tag = await createTag(name, color);
