@@ -115,3 +115,4 @@ DATABASE_URL=postgresql://postgres.xxxxx:password@aws-0-region.pooler.supabase.c
 - Make sure the project is active (not paused)
 
 
+

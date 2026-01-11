@@ -1,0 +1,21 @@
+{
+  "rewrites": [
+    {
+      "source": "/admin/",
+      "destination": "https://upsc-v3-admin.vercel.app/"
+    },
+    {
+      "source": "/admin/:match*",
+      "destination": "https://upsc-v3-admin.vercel.app/:match*"
+    },
+    {
+      "source": "/",
+      "destination": "https://upsc-v3-git-main-vamsis-projects-4d71922c.vercel.app"
+    },
+    {
+      "source": "/:match*",
+      "destination": "https://upsc-v3-git-main-vamsis-projects-4d71922c.vercel.app/:match*"
+    }
+  ]
+}
+

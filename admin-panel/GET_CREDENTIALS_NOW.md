@@ -111,3 +111,4 @@ Then go to: **http://localhost:3000** and login! 🎉
 - See: `QUICK_SETUP_INSTRUCTIONS.md` for full guide
 
 
+

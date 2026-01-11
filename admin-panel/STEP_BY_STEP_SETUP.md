@@ -215,3 +215,4 @@ Your Supabase project is now fully set up with:
 - **Setup Script**: `setup-supabase.js` (run with `npm run setup`)
 
 
+

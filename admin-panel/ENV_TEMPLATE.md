@@ -67,3 +67,4 @@ npm run setup:env
 Or manually create `.env.local` file in the `admin-panel` directory with the template above.
 
 
+
