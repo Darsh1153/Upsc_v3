@@ -1,6 +1,6 @@
 // Test OpenRouter API Key
 // Run this to verify your API key works
-const API_KEY = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY || 'YOUR_API_KEY_HERE';
+const API_KEY = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY || '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';
 const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 async function testApiKey() {
