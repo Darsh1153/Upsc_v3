@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Base path for /admin routing
+  basePath: '/admin',
   // Allow images from any domain for scraped articles
   images: {
     remotePatterns: [

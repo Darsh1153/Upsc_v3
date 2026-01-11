@@ -3,6 +3,10 @@
     "public": true,
     "rewrites": [
         {
+            "source": "/admin/:path*",
+            "destination": "https://upsc-v3-admin.vercel.app/admin/:path*"
+        },
+        {
             "source": "/(.*)",
             "destination": "/index.html"
         }
