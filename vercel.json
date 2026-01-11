@@ -4,12 +4,16 @@
   "outputDirectory": "my-app/dist",
   "rewrites": [
     {
+      "source": "/admin",
+      "destination": "https://upsc-v3-admin.vercel.app/admin"
+    },
+    {
       "source": "/admin/",
-      "destination": "https://upsc-v3-admin.vercel.app/"
+      "destination": "https://upsc-v3-admin.vercel.app/admin/"
     },
     {
       "source": "/admin/:match*",
-      "destination": "https://upsc-v3-admin.vercel.app/:match*"
+      "destination": "https://upsc-v3-admin.vercel.app/admin/:match*"
     },
     {
       "source": "/(.*)",
