@@ -16,6 +16,10 @@
       "destination": "https://upsc-v3-admin.vercel.app/admin/:match*"
     },
     {
+      "source": "/api/:match*",
+      "destination": "https://upsc-v3-admin.vercel.app/admin/api/:match*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
