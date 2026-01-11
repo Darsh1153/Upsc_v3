@@ -86,3 +86,4 @@ The mobile app is already configured! Just:
 
 **Important:** Run the SQL migrations before using the apps!
 
+

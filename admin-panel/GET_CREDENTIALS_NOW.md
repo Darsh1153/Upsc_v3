@@ -110,3 +110,4 @@ Then go to: **http://localhost:3000** and login! 🎉
 - Check: `ENV_TEMPLATE.md` for detailed template
 - See: `QUICK_SETUP_INSTRUCTIONS.md` for full guide
 
+

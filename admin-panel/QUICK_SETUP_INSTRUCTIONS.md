@@ -136,3 +136,4 @@ Then go to: **http://localhost:3000** and login!
 - **Setup script:** `node setup-env.js`
 - **Detailed guide:** `STEP_BY_STEP_SETUP.md`
 
+

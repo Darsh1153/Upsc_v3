@@ -113,3 +113,4 @@ EXPO_PUBLIC_OPENROUTER_API_KEY=your-openrouter-key
 
 **Your mobile app is ready to use! 🎉**
 
+

@@ -444,3 +444,4 @@ BEGIN
     RAISE NOTICE 'Next: Create admin user via Supabase Dashboard > Authentication > Users';
 END $$;
 
+

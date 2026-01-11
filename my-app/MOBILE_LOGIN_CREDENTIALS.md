@@ -78,3 +78,4 @@ The user will be created in Supabase automatically!
 
 **The easiest way: Use the Sign Up feature in the app!** 🚀
 
+

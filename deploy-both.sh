@@ -64,3 +64,4 @@ echo "   4. Add the variables (see QUICK_DEPLOY.md)"
 echo "   5. Redeploy after adding variables"
 echo ""
 
+

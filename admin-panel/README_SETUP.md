@@ -110,3 +110,4 @@ Then login at http://localhost:3000
 
 **That's it! Your Supabase project is ready! 🎉**
 
+

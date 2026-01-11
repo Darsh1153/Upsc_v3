@@ -104,3 +104,4 @@ BEGIN
     RAISE NOTICE 'Essays and essay_evaluations tables created with RLS policies.';
 END $$;
 
+

@@ -114,3 +114,4 @@ DATABASE_URL=postgresql://postgres.xxxxx:password@aws-0-region.pooler.supabase.c
 - Check that special characters are URL-encoded
 - Make sure the project is active (not paused)
 
+

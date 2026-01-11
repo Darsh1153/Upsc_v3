@@ -34,3 +34,4 @@ After running, you'll have all 20+ database tables ready to use.
 
 After the SQL runs successfully, you need to configure your `.env.local` file with your Supabase credentials.
 
+

@@ -44,3 +44,4 @@ console.log('5. After updating, you can create an admin user via:');
 console.log('   - Supabase Dashboard > Authentication > Users > Add user');
 console.log('   - Or run: npm run create-admin');
 
+

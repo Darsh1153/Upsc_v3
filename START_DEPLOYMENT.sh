@@ -61,3 +61,4 @@ echo "3. See DEPLOY_NOW.md for variable values"
 echo "4. Redeploy after adding variables"
 echo ""
 
+

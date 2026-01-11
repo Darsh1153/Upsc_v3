@@ -214,3 +214,4 @@ Your Supabase project is now fully set up with:
 - **SQL File**: `migrations/00_complete_setup.sql`
 - **Setup Script**: `setup-supabase.js` (run with `npm run setup`)
 
+

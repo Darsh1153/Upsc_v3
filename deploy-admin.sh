@@ -36,3 +36,4 @@ echo ""
 echo "2. Redeploy after adding env vars:"
 echo "   vercel --prod"
 
+

@@ -249,3 +249,4 @@ If you encounter issues:
 4. Check database connection string format
 5. Review migration SQL files for syntax errors
 
+

@@ -125,3 +125,4 @@ After creating the user:
 - Reset password via Supabase Dashboard
 - Or delete the user and create a new one
 
+
