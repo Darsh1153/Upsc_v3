@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd my-app && npm install && npm run build",
+  "buildCommand": "cd my-app && npm install --legacy-peer-deps && npm run build",
   "outputDirectory": "my-app/dist",
   "rewrites": [
     {
