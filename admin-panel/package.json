@@ -8,7 +8,11 @@
     "start": "next start -p 3000 -H 0.0.0.0",
     "lint": "next lint",
     "create-admin": "node create-admin-user.js",
-    "migrate-mcqs": "node run-mcqs-migration.js"
+    "migrate-mcqs": "node run-mcqs-migration.js",
+    "setup": "node setup-supabase.js",
+    "setup:db": "npx drizzle-kit push",
+    "setup:env": "node setup-env.js",
+    "setup:env:quick": "node setup-env-quick.js"
   },
   "dependencies": {
     "@lexical/code": "^0.12.5",

@@ -8,3 +8,4 @@ Full-stack UPSC preparation application with React Native mobile app and Next.js
 - 🎛️ Next.js admin panel for content management
 - 🔐 Supabase authentication
 - 📚 Articles, notes, mind maps, and roadmap management
+# Upsc_v3
